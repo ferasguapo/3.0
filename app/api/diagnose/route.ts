@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     const parsed = coerceToJSONObject(aiText);
     const normalized: NormalizedData = normalizeToSchema(parsed);
 
-    // --- YouTube links with 🔧 emoji for tutorials ---
+    // --- YouTube tutorial links ---
     const queries: string[] = [];
     if (code) queries.push(`how to repair diagnose ${code}`);
     if (part) queries.push(`${part} ${[year, make, model].filter(Boolean).join(" ")} repair tutorial`);
@@ -43,10 +43,10 @@ export async function POST(req: NextRequest) {
     if (generalQuery) queries.push(`${generalQuery} repair`);
 
     const youtubeLinks = Array.from(new Set(queries)).slice(0, 3).map(
-      (q) => `🔧 https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`
+      q => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`
     );
 
-    // --- Parts links with 🛒 emoji ---
+    // --- Parts links (O'Reilly, AutoZone, Advanced Auto Parts) ---
     let aiParts: string[] = [];
     if (code) {
       const partsPrompt = `List the top 3 most likely parts/components that could cause OBD-II code ${code} in ${year ?? ""} ${make ?? ""} ${model ?? ""}. Provide only a comma-separated list, prioritize common parts.`;
@@ -68,17 +68,17 @@ export async function POST(req: NextRequest) {
     ];
 
     const topPartsLinks = [
-      `🛒 https://www.oreillyauto.com/search?query=${encodeURIComponent([year, make, model, partForStores[0]].filter(Boolean).join(" ") || partForStores[0])}`,
-      `🛒 https://www.autozone.com/searchresult?searchText=${encodeURIComponent([year, make, model, partForStores[1]].filter(Boolean).join(" ") || partForStores[1])}`,
-      `🛒 https://shop.advanceautoparts.com/search?searchText=${encodeURIComponent([year, make, model, partForStores[2]].filter(Boolean).join(" ") || partForStores[2])}`,
+      `https://www.oreillyauto.com/search?query=${encodeURIComponent([year, make, model, partForStores[0]].filter(Boolean).join(" ") || partForStores[0])}`,
+      `https://www.autozone.com/searchresult?searchText=${encodeURIComponent([year, make, model, partForStores[1]].filter(Boolean).join(" ") || partForStores[1])}`,
+      `https://shop.advanceautoparts.com/search?searchText=${encodeURIComponent([year, make, model, partForStores[2]].filter(Boolean).join(" ") || partForStores[2])}`,
     ];
 
-    // --- Build final response with emojis in steps ---
+    // --- Build final response (emoji only on section titles) ---
     const finalData: any = {
       overview: `📝 Overview\n${normalized.overview || "No overview available"}`,
-      diagnostic_steps: normalized.diagnostic_steps?.map(step => `🔍 ${step}`) ?? [],
-      repair_steps: normalized.repair_steps?.map(step => `🛠 ${step}`) ?? [],
-      tools_needed: normalized.tools_needed?.map(tool => `🔧 ${tool}`) ?? [],
+      diagnostic_steps: normalized.diagnostic_steps ?? [],
+      repair_steps: normalized.repair_steps ?? [],
+      tools_needed: normalized.tools_needed ?? [],
       time_estimate: `⏱ Estimated Time\n${normalized.time_estimate || "N/A"}`,
       cost_estimate: `💰 Estimated Cost\n${normalized.cost_estimate || "N/A"}`,
       parts: topPartsLinks,
