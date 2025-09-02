@@ -36,20 +36,24 @@ export async function POST(req: NextRequest) {
     const parsed = coerceToJSONObject(aiText);
     const normalized: NormalizedData = normalizeToSchema(parsed);
 
-    // Generate YouTube search links manually
-    const searchQuery = encodeURIComponent(
-      `${year ?? ""} ${make ?? ""} ${model ?? ""} ${part ?? ""} repair tutorial`
-    );
-    const youtubeLinks = [
-      `https://www.youtube.com/results?search_query=${searchQuery}`,
-      `https://www.youtube.com/results?search_query=${searchQuery}&sp=EgIQAQ%253D%253D`,
-      `https://www.youtube.com/results?search_query=${searchQuery}&sp=CAMSAhAB`,
-    ];
+    // --- Generate targeted YouTube search links ---
+    const queries: string[] = [];
 
-    // Generate O'Reilly parts search links manually
-    const partsQuery = encodeURIComponent(
-      `${year ?? ""} ${make ?? ""} ${model ?? ""} ${part ?? ""}`
+    // Include OBD-II code + part + vehicle info if available
+    if (code) queries.push(`${code} ${part ?? ""} ${year ?? ""} ${make ?? ""} ${model ?? ""} repair`);
+    // Include part + vehicle info
+    if (part) queries.push(`${part} ${year ?? ""} ${make ?? ""} ${model ?? ""} repair tutorial`);
+    // Include general repair + vehicle
+    queries.push(`${year ?? ""} ${make ?? ""} ${model ?? ""} ${part ?? ""} repair`);
+
+    // Deduplicate and encode queries
+    const uniqueQueries = Array.from(new Set(queries));
+    const youtubeLinks = uniqueQueries.map(
+      (q) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`
     );
+
+    // --- Generate O'Reilly parts search links manually ---
+    const partsQuery = encodeURIComponent(`${year ?? ""} ${make ?? ""} ${model ?? ""} ${part ?? ""}`);
     const partsLinks = [
       `https://www.oreillyauto.com/search?query=${partsQuery}`,
       `https://www.oreillyauto.com/search?query=${partsQuery}&searchType=products`,
@@ -65,7 +69,7 @@ export async function POST(req: NextRequest) {
       time_estimate: normalized.time_estimate || "N/A",
       cost_estimate: normalized.cost_estimate || "N/A",
       parts: partsLinks,      // ONLY generated links
-      videos: youtubeLinks,   // ONLY generated links
+      videos: youtubeLinks,   // Targeted YouTube searches
     };
 
     return NextResponse.json({ ok: true, data: finalData, raw: aiText }, { status: 200 });
