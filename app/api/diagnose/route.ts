@@ -54,14 +54,33 @@ export async function POST(req: NextRequest) {
     const generalQuery = [year, make, model, part].filter(Boolean).join(" ");
     if (generalQuery) queries.push(`${generalQuery} repair`);
 
-    // Deduplicate and encode queries for YouTube
     const uniqueQueries = Array.from(new Set(queries));
     const youtubeLinks = uniqueQueries.map(
       (q) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`
     );
 
-    // --- Keep O'Reilly parts links empty for now (update later) ---
+    // --- Generate parts links from Amazon & eBay ---
+    let aiParts: string[] = [];
+    if (code) {
+      // Ask AI which parts relate to the OBD-II code
+      const partsPrompt = `List the specific parts or components that could cause OBD-II code ${code} in ${year ?? ""} ${make ?? ""} ${model ?? ""}. Provide only a comma-separated list of parts.`;
+      const partsText = await callAI(partsPrompt);
+      aiParts = partsText.split(/,|\n/).map(p => p.trim()).filter(Boolean);
+    }
+    if (part && !aiParts.includes(part)) aiParts.push(part);
+
     const partsLinks: string[] = [];
+    aiParts.forEach((p) => {
+      const baseQuery = [year, make, model, p].filter(Boolean).join(" ");
+      partsLinks.push(`https://www.amazon.com/s?k=${encodeURIComponent(baseQuery)}`);
+      partsLinks.push(`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(baseQuery)}`);
+    });
+
+    // Fallback if no parts found
+    if (!partsLinks.length && generalQuery) {
+      partsLinks.push(`https://www.amazon.com/s?k=${encodeURIComponent(generalQuery)}`);
+      partsLinks.push(`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(generalQuery)}`);
+    }
 
     // --- Build final data object ---
     const finalData: any = {
@@ -71,8 +90,8 @@ export async function POST(req: NextRequest) {
       tools_needed: normalized.tools_needed ?? [],
       time_estimate: normalized.time_estimate || "N/A",
       cost_estimate: normalized.cost_estimate || "N/A",
-      parts: partsLinks,      // Placeholder
-      videos: youtubeLinks,   // Targeted YouTube searches
+      parts: partsLinks,
+      videos: youtubeLinks,
     };
 
     return NextResponse.json({ ok: true, data: finalData, raw: aiText }, { status: 200 });
