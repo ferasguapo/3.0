@@ -8,7 +8,6 @@ export type NormalizedData = {
   cost_estimate: string;
   parts: string[];
   videos: string[];
-  recommended_repairs: string[]; // ✅ added
 };
 
 /** Call Groq AI provider and return raw text */
@@ -32,7 +31,7 @@ export async function callAI(
         {
           role: "system",
           content: `You are obuddy5000, a professional auto mechanic assistant.
-Teach absolute beginners step by step.
+Teach absolute beginners step by step like a manual be descriptive and specific for diagnostic steps and repair steps walk the user through every thing they should check and do at the end of diagnostics list common repairs related to the issue the user is having.
 Always return valid JSON with this schema:
 {
   "overview": string,
@@ -42,8 +41,7 @@ Always return valid JSON with this schema:
   "time_estimate": string,
   "cost_estimate": string,
   "parts": string[],
-  "videos": string[],
-  "recommended_repairs": string[]
+  "videos": string[]
 }`,
         },
         { role: "user", content: prompt },
@@ -114,10 +112,4 @@ export function normalizeToSchema(obj: any): NormalizedData {
     parts: Array.isArray(obj?.parts) ? obj.parts.map(String) : [],
 
     videos: Array.isArray(obj?.videos) ? obj.videos.map(String) : [],
-
-    recommended_repairs: Array.isArray(obj?.recommended_repairs)
-      ? obj.recommended_repairs.map(String)
-      : [],
   };
-}
-
