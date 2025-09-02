@@ -8,6 +8,7 @@ export type NormalizedData = {
   cost_estimate: string;
   parts: string[];
   videos: string[];
+  recommended_repairs?: string[]; // ✅ added to fix mismatch
 };
 
 /** Call Groq AI provider and return raw text */
@@ -41,7 +42,8 @@ Always return valid JSON with this schema:
   "time_estimate": string,
   "cost_estimate": string,
   "parts": string[],
-  "videos": string[]
+  "videos": string[],
+  "recommended_repairs": string[]
 }`,
         },
         { role: "user", content: prompt },
@@ -107,13 +109,4 @@ export function normalizeToSchema(obj: any): NormalizedData {
     cost_estimate:
       typeof obj?.cost_estimate === "string"
         ? obj.cost_estimate
-        : "N/A",
 
-    parts: Array.isArray(obj?.parts) ? obj.parts.map(String) : [],
-
-    videos: Array.isArray(obj?.videos) ? obj.videos.map(String) : [],
-
-    // Optional recommended repairs list
-    recommended_repairs: Array.isArray(obj?.recommended_repairs) ? obj.recommended_repairs.map(String) : [],
-  };
-}
