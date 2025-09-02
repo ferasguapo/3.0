@@ -39,11 +39,23 @@ export async function POST(req: NextRequest) {
     // --- Generate targeted YouTube search links ---
     const queries: string[] = [];
 
-    // Include OBD-II code + part + vehicle info if available
-    if (code) queries.push(`${code} ${part ?? ""} ${year ?? ""} ${make ?? ""} ${model ?? ""} repair`);
-    // Include part + vehicle info
+    // If OBD-II code is provided, ask AI for related parts
+    let aiParts: string[] = [];
+    if (code) {
+      const partsPrompt = `List the specific parts or components that could cause OBD-II code ${code} in ${year ?? ""} ${make ?? ""} ${model ?? ""}. Provide only a comma-separated list of parts.`;
+      const partsText = await callAI(partsPrompt);
+      aiParts = partsText.split(/,|\n/).map(p => p.trim()).filter(Boolean);
+    }
+
+    // Include OBD-II code + AI-suggested parts + vehicle info
+    if (code) {
+      queries.push(`${code} ${aiParts.join(" ")} ${year ?? ""} ${make ?? ""} ${model ?? ""} repair`);
+    }
+
+    // Include part + vehicle info if provided
     if (part) queries.push(`${part} ${year ?? ""} ${make ?? ""} ${model ?? ""} repair tutorial`);
-    // Include general repair + vehicle
+
+    // Include general repair + vehicle info
     queries.push(`${year ?? ""} ${make ?? ""} ${model ?? ""} ${part ?? ""} repair`);
 
     // Deduplicate and encode queries
@@ -68,8 +80,8 @@ export async function POST(req: NextRequest) {
       tools_needed: normalized.tools_needed ?? [],
       time_estimate: normalized.time_estimate || "N/A",
       cost_estimate: normalized.cost_estimate || "N/A",
-      parts: partsLinks,      // ONLY generated links
-      videos: youtubeLinks,   // Targeted YouTube searches
+      parts: partsLinks,
+      videos: youtubeLinks,
     };
 
     return NextResponse.json({ ok: true, data: finalData, raw: aiText }, { status: 200 });
