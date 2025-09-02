@@ -6,8 +6,8 @@ export type NormalizedData = {
   tools_needed: string[];
   time_estimate: string;
   cost_estimate: string;
-  parts: string[];
-  videos: string[];
+  parts: string[];    // Will remain empty; use your generated links instead
+  videos: string[];   // Will remain empty; use your generated links instead
 };
 
 /** Call Groq AI provider and return detailed beginner-friendly JSON */
@@ -40,19 +40,19 @@ Tools instructions:
 - Include any special tools for the repair.
 
 Additional instructions:
-- After diagnostics, list **common repairs** related to the issue.
-- Include rough **time estimates, cost estimates, parts needed**, and helpful videos if available.
+- Do NOT generate parts or video links — these will be handled separately.
+- Include rough **time estimates and cost estimates** only.
 - Always produce valid JSON **exactly matching this schema**:
 
 {
-  "overview": string,             // Summary of the issue and guide
-  "diagnostic_steps": string[],   // Step-by-step diagnostics with full detail
-  "repair_steps": string[],       // Step-by-step repairs with full detail
-  "tools_needed": string[],       // Specific tools, with sizes/models if possible
-  "time_estimate": string,        // Rough time estimate
-  "cost_estimate": string,        // Rough cost estimate
-  "parts": string[],              // Exact parts needed
-  "videos": string[]              // Links to helpful videos
+  "overview": string,
+  "diagnostic_steps": string[],
+  "repair_steps": string[],
+  "tools_needed": string[],
+  "time_estimate": string,
+  "cost_estimate": string,
+  "parts": [],   // leave empty
+  "videos": []   // leave empty
 }
 `;
 
@@ -69,7 +69,7 @@ Additional instructions:
         { role: "user", content: prompt },
       ],
       temperature: 0.7,
-      max_tokens: 8000, // allow long, detailed responses
+      max_tokens: 8000,
       response_format: { type: "json_object" },
     }),
     signal,
@@ -132,9 +132,8 @@ export function normalizeToSchema(obj: any): NormalizedData {
         ? obj.cost_estimate
         : "N/A",
 
-    parts: Array.isArray(obj?.parts) ? obj.parts.map(String) : [],
-
-    videos: Array.isArray(obj?.videos) ? obj.videos.map(String) : [],
+    // Always empty; handled in /api/diagnose
+    parts: [],
+    videos: [],
   };
 }
-
