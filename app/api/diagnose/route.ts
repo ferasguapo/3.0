@@ -43,8 +43,18 @@ export async function POST(req: NextRequest) {
     );
     const youtubeLinks = [
       `https://www.youtube.com/results?search_query=${searchQuery}`,
-      `https://www.youtube.com/results?search_query=${searchQuery}&sp=EgIQAQ%253D%253D`, // filtered for videos
-      `https://www.youtube.com/results?search_query=${searchQuery}&sp=CAMSAhAB` // another filter
+      `https://www.youtube.com/results?search_query=${searchQuery}&sp=EgIQAQ%253D%253D`, 
+      `https://www.youtube.com/results?search_query=${searchQuery}&sp=CAMSAhAB`
+    ];
+
+    // Generate O'Reilly parts search links (2–3 links)
+    const partsQuery = encodeURIComponent(
+      `${year ?? ""} ${make ?? ""} ${model ?? ""} ${part ?? ""}`
+    );
+    const partsLinks = [
+      `https://www.oreillyauto.com/search?query=${partsQuery}`,
+      `https://www.oreillyauto.com/search?query=${partsQuery}&searchType=products`,
+      `https://www.oreillyauto.com/search?query=${partsQuery}&searchType=all`
     ];
 
     const finalData: any = {
@@ -54,7 +64,7 @@ export async function POST(req: NextRequest) {
       tools_needed: normalized.tools_needed ?? [],
       time_estimate: normalized.time_estimate || "N/A",
       cost_estimate: normalized.cost_estimate || "N/A",
-      parts: normalized.parts ?? [],
+      parts: partsLinks,   // <-- now returns links instead of part list
       videos: youtubeLinks,
       recommended_repairs: normalized.recommended_repairs ?? [],
     };
