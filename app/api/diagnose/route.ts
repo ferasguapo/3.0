@@ -36,10 +36,7 @@ export async function POST(req: NextRequest) {
     const parsed = coerceToJSONObject(aiText);
     const normalized: NormalizedData = normalizeToSchema(parsed);
 
-    // --- Generate targeted YouTube search links ---
-    const queries: string[] = [];
-
-    // If OBD-II code is provided, ask AI for related parts
+    // --- Determine parts to use for targeted searches ---
     let aiParts: string[] = [];
     if (code) {
       const partsPrompt = `List the specific parts or components that could cause OBD-II code ${code} in ${year ?? ""} ${make ?? ""} ${model ?? ""}. Provide only a comma-separated list of parts.`;
@@ -47,9 +44,14 @@ export async function POST(req: NextRequest) {
       aiParts = partsText.split(/,|\n/).map(p => p.trim()).filter(Boolean);
     }
 
-    // Include OBD-II code + AI-suggested parts + vehicle info
-    if (code) {
+    // --- Generate targeted YouTube search links ---
+    const queries: string[] = [];
+
+    // Use OBD-II code + AI-suggested parts + vehicle info
+    if (code && aiParts.length) {
       queries.push(`${code} ${aiParts.join(" ")} ${year ?? ""} ${make ?? ""} ${model ?? ""} repair`);
+    } else if (code) {
+      queries.push(`${code} ${year ?? ""} ${make ?? ""} ${model ?? ""} repair`);
     }
 
     // Include part + vehicle info if provided
@@ -58,19 +60,21 @@ export async function POST(req: NextRequest) {
     // Include general repair + vehicle info
     queries.push(`${year ?? ""} ${make ?? ""} ${model ?? ""} ${part ?? ""} repair`);
 
-    // Deduplicate and encode queries
     const uniqueQueries = Array.from(new Set(queries));
     const youtubeLinks = uniqueQueries.map(
       (q) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`
     );
 
-    // --- Generate O'Reilly parts search links manually ---
-    const partsQuery = encodeURIComponent(`${year ?? ""} ${make ?? ""} ${model ?? ""} ${part ?? ""}`);
-    const partsLinks = [
-      `https://www.oreillyauto.com/search?query=${partsQuery}`,
-      `https://www.oreillyauto.com/search?query=${partsQuery}&searchType=products`,
-      `https://www.oreillyauto.com/search?query=${partsQuery}&searchType=all`,
-    ];
+    // --- Generate O'Reilly parts search links using AI-suggested parts ---
+    let allPartsForSearch: string[] = aiParts.length ? aiParts : [part ?? ""];
+    const partsLinks = allPartsForSearch
+      .filter(Boolean)
+      .map((p) => `https://www.oreillyauto.com/search/results?q=${encodeURIComponent(`${year ?? ""} ${make ?? ""} ${model ?? ""} ${p}`)}`);
+
+    // Fallback if no parts suggested
+    if (!partsLinks.length) {
+      partsLinks.push(`https://www.oreillyauto.com/search/results?q=${encodeURIComponent(`${year ?? ""} ${make ?? ""} ${model ?? ""}`)}`);
+    }
 
     // Build final data object
     const finalData: any = {
