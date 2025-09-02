@@ -36,23 +36,26 @@ export async function POST(req: NextRequest) {
     // --- Generate targeted YouTube search links ---
     const queries: string[] = [];
 
-    // If OBD-II code is provided, always search "how to fix [code]" with optional vehicle info
-    if (code) {
-      let q = `how to fix ${code}`;
-      if (year || make || model) {
-        q += ` ${[year, make, model].filter(Boolean).join(" ")}`;
+    if (code && !part && !year && !make && !model) {
+      // Only OBD-II code provided → highly targeted search
+      queries.push(`how to repair diagnose ${code}`);
+    } else {
+      // If OBD-II code is provided with other info
+      if (code) {
+        let q = `how to fix ${code}`;
+        if (year || make || model) {
+          q += ` ${[year, make, model].filter(Boolean).join(" ")}`;
+        }
+        queries.push(q);
       }
-      queries.push(q);
+      // If part is provided
+      if (part) {
+        queries.push(`${part} ${[year, make, model].filter(Boolean).join(" ")} repair tutorial`);
+      }
+      // General fallback
+      const generalQuery = [year, make, model, part].filter(Boolean).join(" ");
+      if (generalQuery) queries.push(`${generalQuery} repair`);
     }
-
-    // If part is provided, include part + vehicle info
-    if (part) {
-      queries.push(`${part} ${[year, make, model].filter(Boolean).join(" ")} repair tutorial`);
-    }
-
-    // General fallback repair search
-    const generalQuery = [year, make, model, part].filter(Boolean).join(" ");
-    if (generalQuery) queries.push(`${generalQuery} repair`);
 
     const uniqueQueries = Array.from(new Set(queries));
     const youtubeLinks = uniqueQueries.map(
@@ -62,7 +65,6 @@ export async function POST(req: NextRequest) {
     // --- Generate parts links from Amazon & eBay ---
     let aiParts: string[] = [];
     if (code) {
-      // Ask AI which parts relate to the OBD-II code
       const partsPrompt = `List the specific parts or components that could cause OBD-II code ${code} in ${year ?? ""} ${make ?? ""} ${model ?? ""}. Provide only a comma-separated list of parts.`;
       const partsText = await callAI(partsPrompt);
       aiParts = partsText.split(/,|\n/).map(p => p.trim()).filter(Boolean);
@@ -70,13 +72,13 @@ export async function POST(req: NextRequest) {
     if (part && !aiParts.includes(part)) aiParts.push(part);
 
     const partsLinks: string[] = [];
+    const generalQuery = [year, make, model, part].filter(Boolean).join(" ");
     aiParts.forEach((p) => {
       const baseQuery = [year, make, model, p].filter(Boolean).join(" ");
       partsLinks.push(`https://www.amazon.com/s?k=${encodeURIComponent(baseQuery)}`);
       partsLinks.push(`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(baseQuery)}`);
     });
 
-    // Fallback if no parts found
     if (!partsLinks.length && generalQuery) {
       partsLinks.push(`https://www.amazon.com/s?k=${encodeURIComponent(generalQuery)}`);
       partsLinks.push(`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(generalQuery)}`);
