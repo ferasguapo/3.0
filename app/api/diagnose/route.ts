@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     const parsed = coerceToJSONObject(aiText);
     const normalized: NormalizedData = normalizeToSchema(parsed);
 
-    // Generate search links manually
+    // Generate YouTube search links manually
     const searchQuery = encodeURIComponent(
       `${year ?? ""} ${make ?? ""} ${model ?? ""} ${part ?? ""} repair tutorial`
     );
@@ -46,6 +46,7 @@ export async function POST(req: NextRequest) {
       `https://www.youtube.com/results?search_query=${searchQuery}&sp=CAMSAhAB`,
     ];
 
+    // Generate O'Reilly parts search links manually
     const partsQuery = encodeURIComponent(
       `${year ?? ""} ${make ?? ""} ${model ?? ""} ${part ?? ""}`
     );
