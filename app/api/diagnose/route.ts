@@ -29,14 +29,14 @@ export async function POST(req: NextRequest) {
       notes ? `Notes: ${notes}` : "",
     ].filter(Boolean).join("\n");
 
-    // Call Groq AI for detailed diagnostics & repair instructions
+    // Call AI for diagnostics & repair instructions only
     const aiText = await callAI(userPrompt);
 
     // Parse and normalize AI output
     const parsed = coerceToJSONObject(aiText);
     const normalized: NormalizedData = normalizeToSchema(parsed);
 
-    // Generate YouTube search links (2–3 links)
+    // Generate search links manually
     const searchQuery = encodeURIComponent(
       `${year ?? ""} ${make ?? ""} ${model ?? ""} ${part ?? ""} repair tutorial`
     );
@@ -46,7 +46,6 @@ export async function POST(req: NextRequest) {
       `https://www.youtube.com/results?search_query=${searchQuery}&sp=CAMSAhAB`,
     ];
 
-    // Generate O'Reilly parts search links (2–3 links)
     const partsQuery = encodeURIComponent(
       `${year ?? ""} ${make ?? ""} ${model ?? ""} ${part ?? ""}`
     );
@@ -56,7 +55,7 @@ export async function POST(req: NextRequest) {
       `https://www.oreillyauto.com/search?query=${partsQuery}&searchType=all`,
     ];
 
-    // Build final data object: use AI only for diagnostics/repairs; overwrite videos & parts
+    // Build final data object
     const finalData: any = {
       overview: normalized.overview || "No overview available",
       diagnostic_steps: normalized.diagnostic_steps ?? [],
@@ -64,9 +63,8 @@ export async function POST(req: NextRequest) {
       tools_needed: normalized.tools_needed ?? [],
       time_estimate: normalized.time_estimate || "N/A",
       cost_estimate: normalized.cost_estimate || "N/A",
-      parts: partsLinks,      // Only our O'Reilly links
-      videos: youtubeLinks,   // Only our YouTube search links
-      recommended_repairs: normalized.recommended_repairs ?? [],
+      parts: partsLinks,      // ONLY generated links
+      videos: youtubeLinks,   // ONLY generated links
     };
 
     return NextResponse.json({ ok: true, data: finalData, raw: aiText }, { status: 200 });
