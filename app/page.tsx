@@ -5,7 +5,7 @@ import { useState } from "react";
 type Result = {
   ok: boolean;
   raw?: string;
-  data?: any; // the parsed JSON from AI
+  data?: any; // the parsed JSON from API
   error?: string;
 };
 
@@ -54,7 +54,22 @@ export default function Home() {
     setResult(null);
   }
 
-  // Format JSON from API into readable sections with emojis and clickable links
+  // Helper to render a list of links
+  const renderListOfLinks = (items: string[]) =>
+    items.map((url, idx) => (
+      <div key={idx}>
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-500 underline"
+        >
+          {url}
+        </a>
+      </div>
+    ));
+
+  // Format JSON from API into readable sections
   function renderFormatted(data: any) {
     if (!data) return null;
 
@@ -71,6 +86,8 @@ export default function Home() {
 
     return sections.map((sec, i) => {
       const value = data[sec.key];
+
+      // Empty or missing
       if (!value || (Array.isArray(value) && value.length === 0)) {
         return (
           <div key={i}>
@@ -82,34 +99,32 @@ export default function Home() {
         );
       }
 
+      // Render arrays
       if (Array.isArray(value)) {
+        // Special handling for links
+        if (sec.key === "parts" || sec.key === "videos") {
+          return (
+            <div key={i} className="mb-2">
+              <strong>{sec.emoji} {sec.title}</strong>
+              <div className="ml-4 mt-1">{renderListOfLinks(value)}</div>
+            </div>
+          );
+        }
+
+        // Regular array items
         return (
           <div key={i} className="mb-2">
             <strong>{sec.emoji} {sec.title}</strong>
             <div className="ml-4 mt-1">
-              {value.map((item: string, idx: number) => {
-                const urlMatch = item.match(/https?:\/\/[^\s]+/);
-                if (urlMatch) {
-                  return (
-                    <div key={idx}>
-                      <a
-                        href={urlMatch[0]}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-500 underline"
-                      >
-                        {item}
-                      </a>
-                    </div>
-                  );
-                }
-                return <div key={idx}>- {item}</div>;
-              })}
+              {value.map((item: string, idx: number) => (
+                <div key={idx}>- {item}</div>
+              ))}
             </div>
           </div>
         );
       }
 
+      // Single string value
       return (
         <div key={i} className="mb-2">
           <strong>{sec.emoji} {sec.title}</strong>
@@ -136,45 +151,15 @@ export default function Home() {
             </h2>
             <form onSubmit={onSubmit} className="space-y-3">
               <div className="grid grid-cols-3 gap-3">
-                <input
-                  className="input"
-                  placeholder="Year"
-                  value={year}
-                  onChange={(e) => setYear(e.target.value)}
-                />
-                <input
-                  className="input"
-                  placeholder="Make"
-                  value={make}
-                  onChange={(e) => setMake(e.target.value)}
-                />
-                <input
-                  className="input"
-                  placeholder="Model"
-                  value={model}
-                  onChange={(e) => setModel(e.target.value)}
-                />
+                <input className="input" placeholder="Year" value={year} onChange={(e) => setYear(e.target.value)} />
+                <input className="input" placeholder="Make" value={make} onChange={(e) => setMake(e.target.value)} />
+                <input className="input" placeholder="Model" value={model} onChange={(e) => setModel(e.target.value)} />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <input
-                  className="input"
-                  placeholder="Part (e.g., Starter, O2 Sensor)"
-                  value={part}
-                  onChange={(e) => setPart(e.target.value)}
-                />
-                <input
-                  className="input"
-                  placeholder="OBD-II Code (e.g., P0303)"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                />
+                <input className="input" placeholder="Part (e.g., Starter, O2 Sensor)" value={part} onChange={(e) => setPart(e.target.value)} />
+                <input className="input" placeholder="OBD-II Code (e.g., P0303)" value={code} onChange={(e) => setCode(e.target.value)} />
               </div>
-              <textarea
-                className="input h-28 resize-none"
-                placeholder="Ask anything (symptoms, questions…)"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
+              <textarea className="input h-28 resize-none" placeholder="Ask anything (symptoms, questions…)" value={notes} onChange={(e) => setNotes(e.target.value)} />
               <div className="flex gap-3">
                 <button className="btn btn-primary flex-1" type="submit" disabled={loading}>
                   {loading ? "Diagnosing…" : "Diagnose"}
@@ -188,11 +173,7 @@ export default function Home() {
 
           <section className="card p-6">
             <h2 className="text-lg font-medium mb-4 text-[color:var(--subtle)]">Result</h2>
-            {!result && (
-              <div className="text-[color:var(--subtle)] text-sm">
-                Results will appear here.
-              </div>
-            )}
+            {!result && <div className="text-[color:var(--subtle)] text-sm">Results will appear here.</div>}
             {result && result.ok && result.data && (
               <div className="bg-[color:var(--muted)] rounded-2xl p-4 text-sm overflow-auto whitespace-pre-wrap max-h-[700px]">
                 {renderFormatted(result.data)}
@@ -205,12 +186,8 @@ export default function Home() {
             )}
             {result?.raw && (
               <details className="mt-3">
-                <summary className="cursor-pointer text-[color:var(--subtle)]">
-                  Raw model output
-                </summary>
-                <pre className="bg-[color:var(--muted)] rounded-2xl p-4 text-xs overflow-auto mt-2">
-                  {result.raw}
-                </pre>
+                <summary className="cursor-pointer text-[color:var(--subtle)]">Raw model output</summary>
+                <pre className="bg-[color:var(--muted)] rounded-2xl p-4 text-xs overflow-auto mt-2">{result.raw}</pre>
               </details>
             )}
           </section>
@@ -223,3 +200,4 @@ export default function Home() {
     </main>
   );
 }
+
