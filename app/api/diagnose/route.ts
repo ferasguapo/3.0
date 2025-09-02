@@ -21,16 +21,15 @@ export async function POST(req: NextRequest) {
       notes?: string;
     };
 
+    // Build a natural-language prompt for AI
     const userPrompt = [
       year || make || model ? `Vehicle: ${[year, make, model].filter(Boolean).join(" ")}` : "",
       part ? `Part: ${part}` : "",
       code ? `OBD-II Code: ${code}` : "",
       notes ? `Notes: ${notes}` : "",
-    ]
-      .filter(Boolean)
-      .join("\n");
+    ].filter(Boolean).join("\n");
 
-    // Call Groq AI
+    // Call Groq AI for detailed diagnostics & repair instructions
     const aiText = await callAI(userPrompt);
 
     // Parse and normalize AI output
@@ -43,8 +42,8 @@ export async function POST(req: NextRequest) {
     );
     const youtubeLinks = [
       `https://www.youtube.com/results?search_query=${searchQuery}`,
-      `https://www.youtube.com/results?search_query=${searchQuery}&sp=EgIQAQ%253D%253D`, 
-      `https://www.youtube.com/results?search_query=${searchQuery}&sp=CAMSAhAB`
+      `https://www.youtube.com/results?search_query=${searchQuery}&sp=EgIQAQ%253D%253D`,
+      `https://www.youtube.com/results?search_query=${searchQuery}&sp=CAMSAhAB`,
     ];
 
     // Generate O'Reilly parts search links (2–3 links)
@@ -54,9 +53,10 @@ export async function POST(req: NextRequest) {
     const partsLinks = [
       `https://www.oreillyauto.com/search?query=${partsQuery}`,
       `https://www.oreillyauto.com/search?query=${partsQuery}&searchType=products`,
-      `https://www.oreillyauto.com/search?query=${partsQuery}&searchType=all`
+      `https://www.oreillyauto.com/search?query=${partsQuery}&searchType=all`,
     ];
 
+    // Build final data object using AI output for diagnostics/repairs, but ONLY our URLs for videos/parts
     const finalData: any = {
       overview: normalized.overview || "No overview available",
       diagnostic_steps: normalized.diagnostic_steps ?? [],
@@ -64,8 +64,8 @@ export async function POST(req: NextRequest) {
       tools_needed: normalized.tools_needed ?? [],
       time_estimate: normalized.time_estimate || "N/A",
       cost_estimate: normalized.cost_estimate || "N/A",
-      parts: partsLinks,   // <-- now returns links instead of part list
-      videos: youtubeLinks,
+      parts: partsLinks,      // Only our O'Reilly links
+      videos: youtubeLinks,   // Only our YouTube search links
       recommended_repairs: normalized.recommended_repairs ?? [],
     };
 
@@ -77,4 +77,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
