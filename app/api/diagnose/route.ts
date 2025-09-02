@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
       notes?: string;
     };
 
-    // --- AI prompt ---
+    // --- AI prompt for diagnostics & repair ---
     const userPrompt = [
       year || make || model ? `Vehicle: ${[year, make, model].filter(Boolean).join(" ")}` : "",
       part ? `Part: ${part}` : "",
@@ -44,34 +44,36 @@ export async function POST(req: NextRequest) {
       (q) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`
     );
 
-    // --- Parts links ---
+    // --- Parts links (Amazon & eBay) ---
     let aiParts: string[] = [];
     if (code) {
       const partsPrompt = `List the top 3 most likely parts/components that could cause OBD-II code ${code} in ${year ?? ""} ${make ?? ""} ${model ?? ""}. Provide only a comma-separated list, prioritize common parts.`;
       const partsText = await callAI(partsPrompt);
+
+      // Clean and extract parts
       aiParts = partsText
         .split(/,|\n/)
         .map(p => p.trim())
-        .filter(p => p.length > 0)
+        .filter(p => p.length > 0 && !p.startsWith("{") && !p.startsWith("[") && !p.toLowerCase().includes("overview"))
         .slice(0, 3); // top 3 parts
     }
 
     if (part && !aiParts.includes(part)) aiParts.unshift(part); // put user part first
-    aiParts = aiParts.slice(0, 3); // enforce max 3
+    aiParts = aiParts.slice(0, 3); // enforce max 3 parts
 
     // Generate one Amazon + one eBay link per part
-    const partsLinks: string[] = aiParts.flatMap((p) => {
+    const partsLinks: string[] = aiParts.flatMap(p => {
       const query = [year, make, model, p].filter(Boolean).join(" ") || p;
       return [
         `https://www.amazon.com/s?k=${encodeURIComponent(query)}`,
-        `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(query)}`,
+        `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(query)}`
       ];
     });
 
     // Deduplicate and limit total links to 3
     const topPartsLinks = Array.from(new Set(partsLinks)).slice(0, 3);
 
-    // --- Build response ---
+    // --- Build final response ---
     const finalData: any = {
       overview: normalized.overview || "No overview available",
       diagnostic_steps: normalized.diagnostic_steps ?? [],
