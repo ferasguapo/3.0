@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
       notes?: string;
     };
 
-    // --- AI prompt for diagnostics & repair instructions ---
+    // --- AI prompt ---
     const userPrompt = [
       year || make || model ? `Vehicle: ${[year, make, model].filter(Boolean).join(" ")}` : "",
       part ? `Part: ${part}` : "",
@@ -33,44 +33,45 @@ export async function POST(req: NextRequest) {
     const parsed = coerceToJSONObject(aiText);
     const normalized: NormalizedData = normalizeToSchema(parsed);
 
-    // --- YouTube queries ---
+    // --- YouTube links ---
     const queries: string[] = [];
     if (code) queries.push(`how to repair diagnose ${code}`);
     if (part) queries.push(`${part} ${[year, make, model].filter(Boolean).join(" ")} repair tutorial`);
     const generalQuery = [year, make, model, part].filter(Boolean).join(" ");
     if (generalQuery) queries.push(`${generalQuery} repair`);
 
-    const uniqueQueries = Array.from(new Set(queries));
-    const youtubeLinks = uniqueQueries.slice(0, 3).map(
+    const youtubeLinks = Array.from(new Set(queries)).slice(0, 3).map(
       (q) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`
     );
 
-    // --- Parts links (Amazon & eBay) with top 3 relevant results ---
+    // --- Parts links ---
     let aiParts: string[] = [];
     if (code) {
-      const partsPrompt = `List the top 3 most likely parts or components that could cause OBD-II code ${code} in ${year ?? ""} ${make ?? ""} ${model ?? ""}. Provide only a comma-separated list of parts, prioritizing the most common ones.`;
+      const partsPrompt = `List the top 3 most likely parts/components that could cause OBD-II code ${code} in ${year ?? ""} ${make ?? ""} ${model ?? ""}. Provide only a comma-separated list, prioritize common parts.`;
       const partsText = await callAI(partsPrompt);
-      aiParts = partsText.split(/,|\n/).map(p => p.trim()).filter(Boolean).slice(0, 3); // limit to top 3
+      aiParts = partsText
+        .split(/,|\n/)
+        .map(p => p.trim())
+        .filter(p => p.length > 0)
+        .slice(0, 3); // top 3 parts
     }
 
     if (part && !aiParts.includes(part)) aiParts.unshift(part); // put user part first
-    aiParts = aiParts.slice(0, 3); // ensure max 3
+    aiParts = aiParts.slice(0, 3); // enforce max 3
 
-    const partsLinks: string[] = [];
-    aiParts.forEach((p) => {
-      // Include vehicle info only if it exists
-      const queryWithVehicle = [year, make, model, p].filter(Boolean).join(" ");
-      const querySimple = p;
-      partsLinks.push(`https://www.amazon.com/s?k=${encodeURIComponent(queryWithVehicle)}`);
-      partsLinks.push(`https://www.amazon.com/s?k=${encodeURIComponent(querySimple)}`);
-      partsLinks.push(`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(queryWithVehicle)}`);
-      partsLinks.push(`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(querySimple)}`);
+    // Generate one Amazon + one eBay link per part
+    const partsLinks: string[] = aiParts.flatMap((p) => {
+      const query = [year, make, model, p].filter(Boolean).join(" ") || p;
+      return [
+        `https://www.amazon.com/s?k=${encodeURIComponent(query)}`,
+        `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(query)}`,
+      ];
     });
 
-    // Deduplicate and limit to top 3
+    // Deduplicate and limit total links to 3
     const topPartsLinks = Array.from(new Set(partsLinks)).slice(0, 3);
 
-    // --- Build final response ---
+    // --- Build response ---
     const finalData: any = {
       overview: normalized.overview || "No overview available",
       diagnostic_steps: normalized.diagnostic_steps ?? [],
@@ -91,4 +92,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
