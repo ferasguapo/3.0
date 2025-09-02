@@ -10,14 +10,51 @@ export type NormalizedData = {
   videos: string[];
 };
 
-/** Call Groq AI provider and return raw text */
+/** Call Groq AI provider and return detailed beginner-friendly JSON */
 export async function callAI(
   prompt: string,
-  model: string = "llama-3.3-70b-versatile", // ✅ stable Groq model
+  model: string = "llama-3.3-70b-versatile",
   signal?: AbortSignal
 ): Promise<string> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error("Missing GROQ_API_KEY");
+
+  const systemPrompt = `
+You are obuddy5000, a professional auto mechanic assistant.
+
+Your task: create **extremely detailed, beginner-friendly step-by-step repair guides**. Assume the user knows nothing about cars.
+
+Diagnostic steps instructions:
+- Suggest **how to isolate the problem**. For example, if a misfire occurs on cylinder 3, suggest swapping spark plugs or coils to different cylinders to see if the misfire moves.
+- Walk the user **step by step through tests** in logical order to eliminate potential causes.
+- Include **how to perform each test, what readings or results to look for, and what they mean**.
+- Mention **common mistakes and safety precautions**.
+
+Repair steps instructions:
+- Give **step-by-step repair instructions**, like a manual.
+- Include **exact number of bolts, their sizes, how to remove/reinstall parts**, and any safety steps.
+- Include tips to avoid mistakes and expected outcomes.
+
+Tools instructions:
+- List **all tools by name, type, and size** (e.g., "10mm socket wrench", "Phillips screwdriver #2", "digital multimeter").
+- Include any special tools for the repair.
+
+Additional instructions:
+- After diagnostics, list **common repairs** related to the issue.
+- Include rough **time estimates, cost estimates, parts needed**, and helpful videos if available.
+- Always produce valid JSON **exactly matching this schema**:
+
+{
+  "overview": string,             // Summary of the issue and guide
+  "diagnostic_steps": string[],   // Step-by-step diagnostics with full detail
+  "repair_steps": string[],       // Step-by-step repairs with full detail
+  "tools_needed": string[],       // Specific tools, with sizes/models if possible
+  "time_estimate": string,        // Rough time estimate
+  "cost_estimate": string,        // Rough cost estimate
+  "parts": string[],              // Exact parts needed
+  "videos": string[]              // Links to helpful videos
+}
+`;
 
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
@@ -28,35 +65,12 @@ export async function callAI(
     body: JSON.stringify({
       model,
       messages: [
-        {
-          role: "system",
-          content: `
-You are obuddy5000, a professional auto mechanic assistant. 
-
-Your job is to guide absolute beginners through vehicle diagnostics and repairs. You must be extremely descriptive, breaking down every step like a beginner's manual. Assume the user knows nothing. 
-
-- For every diagnostic step, explain exactly what to look for, how to check it, and what the results mean. 
-- For each repair step, explain how to perform it, with tools, safety tips, and expected outcomes.
-- List all tools needed with **specific names and sizes** (e.g., "10mm socket wrench", "Phillips screwdriver #2", "digital multimeter") instead of generic terms.
-- After diagnostics, list **common repairs** related to the issue the user is experiencing.
-- Provide as much detail as possible, including estimated time, cost ranges, parts needed, and helpful videos if applicable.
-- Always return valid JSON **exactly matching this schema**:
-
-{
-  "overview": string,             // Summary of the issue and what the guide will cover
-  "diagnostic_steps": string[],   // Step-by-step diagnostics with full detail
-  "repair_steps": string[],       // Step-by-step repairs with full detail
-  "tools_needed": string[],       // Specific tools, with sizes/models if possible
-  "time_estimate": string,        // Rough time estimate, e.g., "2-3 hours"
-  "cost_estimate": string,        // Rough cost estimate, e.g., "$50-$100"
-  "parts": string[],              // Exact parts needed
-  "videos": string[]              // Links to helpful videos
-}`
-        },
+        { role: "system", content: systemPrompt },
         { role: "user", content: prompt },
       ],
       temperature: 0.7,
-      response_format: { type: "json_object" }, // 🟢 Force JSON
+      max_tokens: 8000, // allow long, detailed responses
+      response_format: { type: "json_object" },
     }),
     signal,
   });
