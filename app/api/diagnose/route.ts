@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
       notes?: string;
     };
 
-    // --- Build AI prompt for diagnostics & repair instructions ---
+    // Build AI prompt for diagnostics & repair instructions
     const userPrompt = [
       year || make || model ? `Vehicle: ${[year, make, model].filter(Boolean).join(" ")}` : "",
       part ? `Part: ${part}` : "",
@@ -33,45 +33,35 @@ export async function POST(req: NextRequest) {
     const parsed = coerceToJSONObject(aiText);
     const normalized: NormalizedData = normalizeToSchema(parsed);
 
-    // --- Get AI-suggested parts for OBD-II code ---
-    let aiParts: string[] = [];
-    if (code) {
-      const partsPrompt = `List the specific parts or components that could cause OBD-II code ${code} in ${year ?? ""} ${make ?? ""} ${model ?? ""}. Provide only a comma-separated list of parts.`;
-      const partsText = await callAI(partsPrompt);
-      aiParts = partsText.split(/,|\n/).map(p => p.trim()).filter(Boolean);
-    }
-
     // --- Generate targeted YouTube search links ---
     const queries: string[] = [];
 
-    // OBD-II code search
-    if (code && aiParts.length) {
-      queries.push(`how to fix ${code} ${aiParts.join(" ")} ${year ?? ""} ${make ?? ""} ${model ?? ""}`);
-    } else if (code) {
-      queries.push(`how to fix ${code} ${year ?? ""} ${make ?? ""} ${model ?? ""}`);
+    // If OBD-II code is provided, always search "how to fix [code]" with optional vehicle info
+    if (code) {
+      let q = `how to fix ${code}`;
+      if (year || make || model) {
+        q += ` ${[year, make, model].filter(Boolean).join(" ")}`;
+      }
+      queries.push(q);
     }
 
-    // Part-specific search
-    if (part) queries.push(`${part} ${year ?? ""} ${make ?? ""} ${model ?? ""} repair tutorial`);
+    // If part is provided, include part + vehicle info
+    if (part) {
+      queries.push(`${part} ${[year, make, model].filter(Boolean).join(" ")} repair tutorial`);
+    }
 
-    // General vehicle repair search
-    queries.push(`${year ?? ""} ${make ?? ""} ${model ?? ""} ${part ?? ""} repair`);
+    // General fallback repair search
+    const generalQuery = [year, make, model, part].filter(Boolean).join(" ");
+    if (generalQuery) queries.push(`${generalQuery} repair`);
 
+    // Deduplicate and encode queries for YouTube
     const uniqueQueries = Array.from(new Set(queries));
     const youtubeLinks = uniqueQueries.map(
       (q) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`
     );
 
-    // --- Generate O'Reilly parts search links ---
-    const allPartsForSearch: string[] = aiParts.length ? aiParts : [part ?? ""];
-    const partsLinks = allPartsForSearch
-      .filter(Boolean)
-      .map((p) => `https://www.oreillyauto.com/search/results?q=${encodeURIComponent(`${year ?? ""} ${make ?? ""} ${model ?? ""} ${p}`)}&searchType=products`);
-
-    // Fallback if no parts suggested
-    if (!partsLinks.length) {
-      partsLinks.push(`https://www.oreillyauto.com/search/results?q=${encodeURIComponent(`${year ?? ""} ${make ?? ""} ${model ?? ""}`)}&searchType=products`);
-    }
+    // --- Keep O'Reilly parts links empty for now (update later) ---
+    const partsLinks: string[] = [];
 
     // --- Build final data object ---
     const finalData: any = {
@@ -81,8 +71,8 @@ export async function POST(req: NextRequest) {
       tools_needed: normalized.tools_needed ?? [],
       time_estimate: normalized.time_estimate || "N/A",
       cost_estimate: normalized.cost_estimate || "N/A",
-      parts: partsLinks,
-      videos: youtubeLinks,
+      parts: partsLinks,      // Placeholder
+      videos: youtubeLinks,   // Targeted YouTube searches
     };
 
     return NextResponse.json({ ok: true, data: finalData, raw: aiText }, { status: 200 });
