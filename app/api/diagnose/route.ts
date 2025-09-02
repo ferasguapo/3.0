@@ -73,6 +73,16 @@ export async function POST(req: NextRequest) {
       `https://shop.advanceautoparts.com/search?searchText=${encodeURIComponent([year, make, model, partForStores[2]].filter(Boolean).join(" ") || partForStores[2])}`,
     ];
 
+    // --- Forum links (Reddit, car forums, etc.) ---
+    const forumQueries: string[] = [];
+    if (code) forumQueries.push(`reddit ${code} ${make ?? ""} ${model ?? ""} forum`);
+    if (part) forumQueries.push(`${part} ${make ?? ""} ${model ?? ""} repair forum`);
+    if (generalQuery) forumQueries.push(`${generalQuery} car forum`);
+
+    const forumLinks = Array.from(new Set(forumQueries)).slice(0, 3).map(
+      q => `https://www.google.com/search?q=${encodeURIComponent(q)}`
+    );
+
     // --- Build final response (emoji only on section titles) ---
     const finalData: any = {
       overview: `📝 Overview\n${normalized.overview || "No overview available"}`,
@@ -83,6 +93,7 @@ export async function POST(req: NextRequest) {
       cost_estimate: `💰 Estimated Cost\n${normalized.cost_estimate || "N/A"}`,
       parts: topPartsLinks,
       videos: youtubeLinks,
+      forums: forumLinks,
     };
 
     return NextResponse.json({ ok: true, data: finalData, raw: aiText }, { status: 200 });
@@ -94,3 +105,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
