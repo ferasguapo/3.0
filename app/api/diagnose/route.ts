@@ -40,7 +40,6 @@ export async function POST(req: NextRequest) {
       // Only OBD-II code provided → highly targeted search
       queries.push(`how to repair diagnose ${code}`);
     } else {
-      // If OBD-II code is provided with other info
       if (code) {
         let q = `how to fix ${code}`;
         if (year || make || model) {
@@ -48,19 +47,20 @@ export async function POST(req: NextRequest) {
         }
         queries.push(q);
       }
-      // If part is provided
       if (part) {
         queries.push(`${part} ${[year, make, model].filter(Boolean).join(" ")} repair tutorial`);
       }
-      // General fallback
       const generalQuery = [year, make, model, part].filter(Boolean).join(" ");
       if (generalQuery) queries.push(`${generalQuery} repair`);
     }
 
     const uniqueQueries = Array.from(new Set(queries));
-    const youtubeLinks = uniqueQueries.map(
+    let youtubeLinks = uniqueQueries.map(
       (q) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`
     );
+
+    // Limit YouTube links to top 3
+    youtubeLinks = youtubeLinks.slice(0, 3);
 
     // --- Generate parts links from Amazon & eBay ---
     let aiParts: string[] = [];
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
       partsLinks.push(`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(generalQuery)}`);
     }
 
-    // --- Limit parts links to top 3 ---
+    // Limit parts links to top 3
     const topPartsLinks = partsLinks.slice(0, 3);
 
     // --- Build final data object ---
