@@ -54,9 +54,9 @@ export default function Home() {
     setResult(null);
   }
 
-  // Helper to render a list of links
+  // Helper to render a list of links, limiting to top 3
   const renderListOfLinks = (items: string[]) =>
-    items.map((url, idx) => (
+    items.slice(0, 3).map((url, idx) => (
       <div key={idx}>
         <a
           href={url}
@@ -82,12 +82,12 @@ export default function Home() {
       { emoji: "💰", title: "Estimated Cost", key: "cost_estimate" },
       { emoji: "🔩", title: "Parts", key: "parts" },
       { emoji: "🎥", title: "Videos", key: "videos" },
+      { emoji: "💬", title: "Forums", key: "forums" },
     ];
 
     return sections.map((sec, i) => {
       const value = data[sec.key];
 
-      // Empty or missing
       if (!value || (Array.isArray(value) && value.length === 0)) {
         return (
           <div key={i}>
@@ -99,10 +99,8 @@ export default function Home() {
         );
       }
 
-      // Render arrays
       if (Array.isArray(value)) {
-        // Special handling for links
-        if (sec.key === "parts" || sec.key === "videos") {
+        if (sec.key === "parts" || sec.key === "videos" || sec.key === "forums") {
           return (
             <div key={i} className="mb-2">
               <strong>{sec.emoji} {sec.title}</strong>
@@ -111,7 +109,6 @@ export default function Home() {
           );
         }
 
-        // Regular array items
         return (
           <div key={i} className="mb-2">
             <strong>{sec.emoji} {sec.title}</strong>
@@ -124,7 +121,6 @@ export default function Home() {
         );
       }
 
-      // Single string value
       return (
         <div key={i} className="mb-2">
           <strong>{sec.emoji} {sec.title}</strong>
@@ -200,4 +196,3 @@ export default function Home() {
     </main>
   );
 }
-
