@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
       `https://www.oreillyauto.com/search?query=${partsQuery}&searchType=all`,
     ];
 
-    // Build final data object using AI output for diagnostics/repairs, but ONLY our URLs for videos/parts
+    // Build final data object: use AI only for diagnostics/repairs; overwrite videos & parts
     const finalData: any = {
       overview: normalized.overview || "No overview available",
       diagnostic_steps: normalized.diagnostic_steps ?? [],
