@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
       notes?: string;
     };
 
-    // Build a natural-language prompt for AI
+    // Build AI prompt for diagnostics & repair instructions
     const userPrompt = [
       year || make || model ? `Vehicle: ${[year, make, model].filter(Boolean).join(" ")}` : "",
       part ? `Part: ${part}` : "",
@@ -29,14 +29,11 @@ export async function POST(req: NextRequest) {
       notes ? `Notes: ${notes}` : "",
     ].filter(Boolean).join("\n");
 
-    // Call AI for diagnostics & repair instructions only
     const aiText = await callAI(userPrompt);
-
-    // Parse and normalize AI output
     const parsed = coerceToJSONObject(aiText);
     const normalized: NormalizedData = normalizeToSchema(parsed);
 
-    // --- Determine parts to use for targeted searches ---
+    // --- Determine AI-suggested parts for OBD-II code ---
     let aiParts: string[] = [];
     if (code) {
       const partsPrompt = `List the specific parts or components that could cause OBD-II code ${code} in ${year ?? ""} ${make ?? ""} ${model ?? ""}. Provide only a comma-separated list of parts.`;
@@ -47,11 +44,11 @@ export async function POST(req: NextRequest) {
     // --- Generate targeted YouTube search links ---
     const queries: string[] = [];
 
-    // Use OBD-II code + AI-suggested parts + vehicle info
+    // If OBD-II code is provided, search "how to fix [code]" optionally with parts + vehicle info
     if (code && aiParts.length) {
-      queries.push(`${code} ${aiParts.join(" ")} ${year ?? ""} ${make ?? ""} ${model ?? ""} repair`);
+      queries.push(`how to fix ${code} ${aiParts.join(" ")} ${year ?? ""} ${make ?? ""} ${model ?? ""}`);
     } else if (code) {
-      queries.push(`${code} ${year ?? ""} ${make ?? ""} ${model ?? ""} repair`);
+      queries.push(`how to fix ${code} ${year ?? ""} ${make ?? ""} ${model ?? ""}`);
     }
 
     // Include part + vehicle info if provided
@@ -66,17 +63,16 @@ export async function POST(req: NextRequest) {
     );
 
     // --- Generate O'Reilly parts search links using AI-suggested parts ---
-    let allPartsForSearch: string[] = aiParts.length ? aiParts : [part ?? ""];
+    const allPartsForSearch: string[] = aiParts.length ? aiParts : [part ?? ""];
     const partsLinks = allPartsForSearch
       .filter(Boolean)
       .map((p) => `https://www.oreillyauto.com/search/results?q=${encodeURIComponent(`${year ?? ""} ${make ?? ""} ${model ?? ""} ${p}`)}`);
 
-    // Fallback if no parts suggested
     if (!partsLinks.length) {
       partsLinks.push(`https://www.oreillyauto.com/search/results?q=${encodeURIComponent(`${year ?? ""} ${make ?? ""} ${model ?? ""}`)}`);
     }
 
-    // Build final data object
+    // --- Build final data object ---
     const finalData: any = {
       overview: normalized.overview || "No overview available",
       diagnostic_steps: normalized.diagnostic_steps ?? [],
