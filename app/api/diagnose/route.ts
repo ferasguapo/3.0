@@ -44,34 +44,38 @@ export async function POST(req: NextRequest) {
       (q) => `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`
     );
 
-    // --- Parts links (Amazon & eBay) ---
+    // --- Parts links (O'Reilly, AutoZone, Advanced Auto Parts) ---
     let aiParts: string[] = [];
     if (code) {
       const partsPrompt = `List the top 3 most likely parts/components that could cause OBD-II code ${code} in ${year ?? ""} ${make ?? ""} ${model ?? ""}. Provide only a comma-separated list, prioritize common parts.`;
       const partsText = await callAI(partsPrompt);
 
-      // Clean and extract parts
       aiParts = partsText
         .split(/,|\n/)
         .map(p => p.trim())
         .filter(p => p.length > 0 && !p.startsWith("{") && !p.startsWith("[") && !p.toLowerCase().includes("overview"))
-        .slice(0, 3); // top 3 parts
+        .slice(0, 3);
     }
 
-    if (part && !aiParts.includes(part)) aiParts.unshift(part); // put user part first
-    aiParts = aiParts.slice(0, 3); // enforce max 3 parts
+    if (part && !aiParts.includes(part)) aiParts.unshift(part);
+    aiParts = aiParts.slice(0, 3);
 
-    // Generate one Amazon + one eBay link per part
-    const partsLinks: string[] = aiParts.flatMap(p => {
-      const query = [year, make, model, p].filter(Boolean).join(" ") || p;
-      return [
-        `https://www.amazon.com/s?k=${encodeURIComponent(query)}`,
-        `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(query)}`
-      ];
-    });
+    // Generate one link per store
+    const topPartsLinks: string[] = [];
+    if (aiParts.length > 0) {
+      const partQuery = [year, make, model, aiParts[0]].filter(Boolean).join(" ") || aiParts[0];
+      topPartsLinks.push(`https://www.oreillyauto.com/search?query=${encodeURIComponent(partQuery)}`);
 
-    // Deduplicate and limit total links to 3
-    const topPartsLinks = Array.from(new Set(partsLinks)).slice(0, 3);
+      if (aiParts[1]) {
+        const partQuery2 = [year, make, model, aiParts[1]].filter(Boolean).join(" ") || aiParts[1];
+        topPartsLinks.push(`https://www.autozone.com/searchresult?searchText=${encodeURIComponent(partQuery2)}`);
+      }
+
+      if (aiParts[2]) {
+        const partQuery3 = [year, make, model, aiParts[2]].filter(Boolean).join(" ") || aiParts[2];
+        topPartsLinks.push(`https://shop.advanceautoparts.com/search?searchText=${encodeURIComponent(partQuery3)}`);
+      }
+    }
 
     // --- Build final response ---
     const finalData: any = {
