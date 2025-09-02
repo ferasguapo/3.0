@@ -84,6 +84,9 @@ export async function POST(req: NextRequest) {
       partsLinks.push(`https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(generalQuery)}`);
     }
 
+    // --- Limit parts links to top 3 ---
+    const topPartsLinks = partsLinks.slice(0, 3);
+
     // --- Build final data object ---
     const finalData: any = {
       overview: normalized.overview || "No overview available",
@@ -92,7 +95,7 @@ export async function POST(req: NextRequest) {
       tools_needed: normalized.tools_needed ?? [],
       time_estimate: normalized.time_estimate || "N/A",
       cost_estimate: normalized.cost_estimate || "N/A",
-      parts: partsLinks,
+      parts: topPartsLinks,
       videos: youtubeLinks,
     };
 
